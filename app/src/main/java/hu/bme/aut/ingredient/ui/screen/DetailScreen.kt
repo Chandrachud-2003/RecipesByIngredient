@@ -1,19 +1,24 @@
 package hu.bme.aut.ingredient.ui.screen
 
 import android.util.Log
+import android.widget.ScrollView
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,14 +29,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import coil.compose.rememberImagePainter
 import hu.bme.aut.ingredient.data.Ingredient
 import hu.bme.aut.ingredient.data.Recipe
@@ -43,10 +54,14 @@ fun DetailScreen(recipeId: String, navController: NavController, viewModel: Main
 
     val recipeIdInt = recipeId.toIntOrNull() ?: return
     val recipe = remember { mutableStateOf<Recipe?>(null) }
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset(0f, 0f)) }
 
     LaunchedEffect(Unit) {
         recipe.value = viewModel.getRecipeById(recipeIdInt)
+        viewModel.getRecipeCard(recipeIdInt)
     }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -58,27 +73,50 @@ fun DetailScreen(recipeId: String, navController: NavController, viewModel: Main
                 }
             )
         },
-        content = { paddingValues ->
-            Column(modifier = Modifier.padding(paddingValues)) {
-                Image(
-                    painter = rememberImagePainter(recipe.value?.image),
-                    contentDescription = "Recipe Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Column (
-                    modifier = Modifier.padding(8.dp)
-                ) {
-                    Text("Recipe Title: ${recipe.value?.title}", style = MaterialTheme.typography.titleMedium)
-                    Text("Likes: ${recipe.value?.likes}", style = MaterialTheme.typography.bodyMedium)
-                    Text("Used ingredients: ${recipe.value?.usedIngredientCount}", style = MaterialTheme.typography.bodyMedium)
+        content = {
+            Column (modifier = Modifier.padding(top = 20.dp)) {
+                when (val state = viewModel.recipeCardState) {
+                    is RecipeCardState.Init -> {}
+                    is RecipeCardState.Loading -> CircularProgressIndicator()
+                    is RecipeCardState.Success -> {
+                        val painter = rememberAsyncImagePainter(state.recipeCard.url)
+                        Image(
+                            painter = painter,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pointerInput(Unit) {
+                                    detectTransformGestures { _, pan, zoom, _ ->
+                                        scale *= zoom
+
+                                        scale = scale.coerceIn(0.5f, 3f)
+
+                                        offset = if (scale == 1f) Offset(0f, 0f) else offset + pan
+                                    }
+                                }
+                                .graphicsLayer(
+                                    scaleX = scale, scaleY = scale,
+                                    translationX = offset.x, translationY = offset.y
+                                )
+                        )
+                    }
+                    is RecipeCardState.Error -> Text("Error: ${state.errorMsg}")
                 }
-                IngredientSection(title = "Used Ingredients", ingredients = recipe.value?.usedIngredients ?: emptyList())
-                IngredientSection(title = "Missed Ingredients", ingredients = recipe.value?.missedIngredients ?: emptyList())
+                Column(modifier = Modifier.padding(it)) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column (
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        Text("Recipe Title: ${recipe.value?.title}", style = MaterialTheme.typography.titleMedium)
+                        Text("Likes: ${recipe.value?.likes}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Used ingredients: ${recipe.value?.usedIngredientCount}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    IngredientSection(title = "Used Ingredients", ingredients = recipe.value?.usedIngredients ?: emptyList())
+                    IngredientSection(title = "Missed Ingredients", ingredients = recipe.value?.missedIngredients ?: emptyList())
+                }
+
             }
+
         }
     )
 }
@@ -101,21 +139,41 @@ fun IngredientSection(title: String, ingredients: List<Ingredient>) {
 }
 
 @Composable
-fun IngredientItem(ingredient: Ingredient) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(ingredient.name, style = MaterialTheme.typography.titleMedium)
-            Text("Amount: ${ingredient.amount} ${ingredient.unit}", style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
 fun NumberedIngredientItem(index: Int, ingredient: Ingredient) {
     Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Text(
             text = "${index + 1}. ${ingredient.name} (${ingredient.amount} ${ingredient.unit})",
             style = MaterialTheme.typography.bodyLarge
+        )
+    }
+}
+
+@Composable
+fun ZoomableImage(imageUrl: String) {
+    var scale by remember { mutableStateOf(1f) }
+    var rotation by remember { mutableStateOf(0f) }
+    var offset by remember { mutableStateOf(Offset(0f, 0f)) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Image(
+            painter = rememberAsyncImagePainter(imageUrl),
+            contentDescription = "Zoomable image",
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = maxOf(1f, minOf(3f, scale)),
+                    scaleY = maxOf(1f, minOf(3f, scale)),
+                    rotationZ = rotation,
+                    translationX = offset.x,
+                    translationY = offset.y
+                )
+                .pointerInput(Unit) {
+                    detectTransformGestures { centroid, pan, zoom, rotation ->
+                        scale *= zoom
+                        offset += pan
+                    }
+                },
+            contentScale = ContentScale.Fit
         )
     }
 }
