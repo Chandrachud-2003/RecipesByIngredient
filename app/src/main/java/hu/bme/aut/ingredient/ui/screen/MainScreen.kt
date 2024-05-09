@@ -1,5 +1,7 @@
 package hu.bme.aut.ingredient.ui.screen
 
+import android.util.Log
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,14 +35,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import hu.bme.aut.ingredient.data.Recipe
+import hu.bme.aut.ingredient.ui.navigation.MainNavigation
+import kotlinx.serialization.json.Json
 
 
 @Composable
 fun MainScreen(
-    mainViewModel: MainViewModel = hiltViewModel()
+    navController: NavHostController,
+    mainViewModel: MainViewModel
 ) {
     var ingredients by rememberSaveable { mutableStateOf("") }
 
@@ -63,27 +69,30 @@ fun MainScreen(
         when (val state = mainViewModel.recipeUIState) {
             is RecipeUiState.Init -> {}
             is RecipeUiState.Loading -> CircularProgressIndicator()
-            is RecipeUiState.Success -> RecipeList(recipes = state.recipes)
+            is RecipeUiState.Success -> RecipeList(recipes = state.recipes, navController = navController)
             is RecipeUiState.Error -> Text("Error: ${state.errorMsg}")
         }
     }
 }
 
 @Composable
-fun RecipeList(recipes: List<Recipe>) {
+fun RecipeList(recipes: List<Recipe>, navController: NavHostController) {
     LazyColumn(modifier = Modifier.fillMaxWidth()) {
         items(recipes) { recipe ->
-            RecipeCard(recipe = recipe)
+            RecipeCard(recipe = recipe, navController = navController )
         }
     }
 }
 
 @Composable
-fun RecipeCard(recipe: Recipe) {
+fun RecipeCard(recipe: Recipe, navController: NavHostController) {
     Card(
         modifier = Modifier
             .padding(8.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable {
+                navController.navigate(MainNavigation.DetailScreen.createRoute(recipe.id!!))
+                       },
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {

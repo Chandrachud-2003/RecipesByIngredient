@@ -19,6 +19,9 @@ data class Recipe(
     var title: String? = null,
     @SerialName("usedIngredientCount")
     var usedIngredientCount: Int? = 0,
-
+    @SerialName("missedIngredients")
+    var missedIngredients: List<Ingredient>? = emptyList(),
+    @SerialName("usedIngredients")
+    var usedIngredients: List<Ingredient>? = emptyList()
 
 )

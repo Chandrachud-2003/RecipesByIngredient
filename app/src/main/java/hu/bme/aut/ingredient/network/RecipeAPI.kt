@@ -2,6 +2,7 @@ package hu.bme.aut.ingredient.network
 
 import hu.bme.aut.ingredient.data.Recipe
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface RecipeAPI {
@@ -15,4 +16,5 @@ interface RecipeAPI {
         @Query("ignorePantry") ignorePantry: Boolean,
         @Query("apiKey") apiKey: String
     ): List<Recipe>
+
 }
