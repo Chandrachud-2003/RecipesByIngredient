@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.ScrollView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -74,12 +75,17 @@ fun DetailScreen(recipeId: String, navController: NavController, viewModel: Main
             )
         },
         content = {
-            Column (modifier = Modifier.padding(top = 20.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(top = 20.dp)
+            ) {
                 when (val state = viewModel.recipeCardState) {
                     is RecipeCardState.Init -> {}
                     is RecipeCardState.Loading -> CircularProgressIndicator()
                     is RecipeCardState.Success -> {
                         val painter = rememberAsyncImagePainter(state.recipeCard.url)
+
+                        // This will allow the image to be zoomed in and ou
                         Image(
                             painter = painter,
                             contentDescription = null,
@@ -100,19 +106,43 @@ fun DetailScreen(recipeId: String, navController: NavController, viewModel: Main
                                 )
                         )
                     }
+
                     is RecipeCardState.Error -> Text("Error: ${state.errorMsg}")
                 }
-                Column(modifier = Modifier.padding(it)) {
+                Column(
+                    modifier = Modifier
+                        .padding(it)
+                ) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Column (
-                        modifier = Modifier.padding(8.dp)
+                    Column(
+                        modifier = Modifier
+                            .padding(8.dp)
+
                     ) {
-                        Text("Recipe Title: ${recipe.value?.title}", style = MaterialTheme.typography.titleMedium)
-                        Text("Likes: ${recipe.value?.likes}", style = MaterialTheme.typography.bodyMedium)
-                        Text("Used ingredients: ${recipe.value?.usedIngredientCount}", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Recipe Title: ${recipe.value?.title}",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            "Likes: ${recipe.value?.likes}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
-                    IngredientSection(title = "Used Ingredients", ingredients = recipe.value?.usedIngredients ?: emptyList())
-                    IngredientSection(title = "Missed Ingredients", ingredients = recipe.value?.missedIngredients ?: emptyList())
+                    Column(
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .verticalScroll(rememberScrollState())
+
+                    ) {
+                        IngredientSection(
+                            title = "Used Ingredients",
+                            ingredients = recipe.value?.usedIngredients ?: emptyList()
+                        )
+                        IngredientSection(
+                            title = "Missed Ingredients",
+                            ingredients = recipe.value?.missedIngredients ?: emptyList()
+                        )
+                    }
                 }
 
             }
@@ -123,16 +153,23 @@ fun DetailScreen(recipeId: String, navController: NavController, viewModel: Main
 
 @Composable
 fun IngredientSection(title: String, ingredients: List<Ingredient>) {
-    Column(modifier = Modifier.padding(8.dp)) {
+    Column(
+        modifier = Modifier
+            .padding(8.dp)
+    ) {
         Text(title, style = MaterialTheme.typography.titleMedium)
 
         if (ingredients.isEmpty()) {
             Text("No ingredients available", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(8.dp))
         } else {
-            LazyColumn {
-                itemsIndexed(ingredients) { index, ingredient ->
-                    NumberedIngredientItem(index, ingredient)
-                }
+//            LazyColumn {
+//                itemsIndexed(ingredients) { index, ingredient ->
+//                    NumberedIngredientItem(index, ingredient)
+//                }
+//            }
+
+            ingredients.forEachIndexed { index, ingredient ->
+                NumberedIngredientItem(index, ingredient)
             }
         }
     }
