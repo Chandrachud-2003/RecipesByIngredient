@@ -5,7 +5,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import hu.bme.aut.ingredient.network.MarsAPI
 import hu.bme.aut.ingredient.network.RecipeAPI
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
